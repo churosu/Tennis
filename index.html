@@ -13,7 +13,8 @@ html,body{height:100%;overscroll-behavior:none;-webkit-touch-callout:none;backgr
 button{font:inherit;color:inherit;border:none;cursor:pointer}
 .screen{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:14px;padding-top:max(24px,env(safe-area-inset-top));padding-bottom:max(24px,env(safe-area-inset-bottom))}
 .screen.on{display:flex}
-#title,#wait{overflow-y:auto;justify-content:safe center}
+#title,#wait,#rk{overflow-y:auto;justify-content:safe center}
+#rk{justify-content:flex-start}
 .logo{font-size:44px;font-weight:900;letter-spacing:.06em;line-height:1;text-align:center}
 .logo span{color:var(--me)}
 .tag{color:var(--sub);font-size:13px;text-align:center}
@@ -27,6 +28,22 @@ input{font:inherit;font-size:18px;font-weight:800;letter-spacing:.2em;text-trans
 .rules b{color:var(--fg)}
 .sens{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--sub)}
 .sens input{flex:1;padding:0;letter-spacing:0}
+#rk{justify-content:flex-start;gap:12px}
+.rkHead{width:min(420px,100%);display:flex;align-items:center;gap:12px}
+.rkHead h2{font-size:20px;font-weight:900;flex:1;letter-spacing:.04em}
+#rkPrev{width:96px;height:110px;flex:none}
+.rkList{width:min(420px,100%);display:flex;flex-direction:column;gap:10px}
+.rkItem{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.rkItem .nm{display:flex;justify-content:space-between;align-items:baseline;font-weight:800;font-size:14px}
+.rkItem .nm span{font-size:11px;color:var(--gold);font-weight:700}
+.rkItem .ds{font-size:11px;color:var(--sub);margin:3px 0 8px;line-height:1.5}
+.seg{display:flex;gap:4px;align-items:center}
+.seg .end{font-size:10px;color:var(--sub);width:40px;text-align:center;flex:none}
+.seg button{flex:1;height:30px;border-radius:8px;background:#0b1320;border:1px solid var(--line);font-weight:800;font-size:13px;color:var(--sub)}
+.seg button.on{background:var(--me);border-color:var(--me);color:#fff}
+.cols{display:flex;gap:8px;flex-wrap:wrap}
+.cols button{width:32px;height:32px;border-radius:50%;border:3px solid transparent}
+.cols button.on{border-color:#fff}
 #codeShow{font-size:56px;font-weight:900;letter-spacing:.18em;color:var(--gold)}
 #waitMsg{color:var(--sub)}
 
@@ -75,6 +92,7 @@ input{font:inherit;font-size:18px;font-weight:800;letter-spacing:.2em;text-trans
     <button class="btn" id="bCreate">部屋を作る</button>
     <div class="row"><input id="codeIn" maxlength="6" placeholder="CODE" autocomplete="off"><button class="btn sub" id="bJoin" style="width:auto;padding:0 20px">参加</button></div>
     <button class="btn ghost" id="bSolo">BOTと練習（コード TEST でも可）</button>
+    <button class="btn sub" id="bRk">マイラケット</button>
     <div class="sens">パッド感度<input type="range" id="sens" min="0.8" max="3.5" step="0.1"><span id="sensV"></span></div>
   </div>
   <div class="card rules">
@@ -82,8 +100,16 @@ input{font:inherit;font-size:18px;font-weight:800;letter-spacing:.2em;text-trans
     <div><b>AIM</b>　ラケットの端で打つほど斜めに飛ぶ</div>
     <div><b>加速 / 減速</b>　当てるだけだと球は2割遅くなる。前へ振る速さに比例して加速し、手前へ引くとさらに減速。キーは押し続けるほど振りが速くなる。ラケットの縁の色（橙＝前／水色＝手前）が今の振りの強さ</div>
     <div><b>ルール</b>　10秒ごとに玉が1つ増える。自陣の奥へ抜かれたら相手に1点、玉はリセット。先に10点で勝ち</div>
-    <div><b>アウト</b>　壁はなし。打った玉が相手の台に入らなければ自分の失点。台に入ってから横へ逃げる玉は、台の外までラケットを伸ばして返せる</div>
+    <div><b>マイラケット</b>　反発・回転・面の大きさ・重さ・打球角度の5項目を5段階で調整できる。左右に動かしながら打つと回転でカーブがかかる</div>
+    <div><b>アウト</b>　壁はなし。打った玉が相手コートに入らなければ自分の失点。弱く打つと飛距離が足りず、相手コートより先に自分のコートに着弾して失点。台に入ってから横へ逃げる玉は、台の外までラケットを伸ばして返せる</div>
   </div>
+</div>
+
+<div id="rk" class="screen">
+  <div class="rkHead"><canvas id="rkPrev" width="192" height="220"></canvas><div style="flex:1"><h2>マイラケット</h2><div class="tag" style="text-align:left">5項目を1〜5で調整。対戦相手にも見た目と性能が反映されます</div></div></div>
+  <div class="rkList" id="rkList"></div>
+  <div class="rkList"><div class="rkItem"><div class="nm">ラバーの色</div><div class="cols" id="rkCols" style="margin-top:8px"></div></div></div>
+  <div class="rkList" style="flex-direction:row"><button class="btn ghost" id="rkReset" style="flex:1">標準に戻す</button><button class="btn" id="rkOk" style="flex:2">決定</button></div>
 </div>
 
 <div id="wait" class="screen">
@@ -139,6 +165,35 @@ try{const v=parseFloat(localStorage.getItem('rt_sens'));if(v)SENS=v;}catch(e){}
 let muted=false;
 try{muted=localStorage.getItem('rt_mute')==='1';}catch(e){}
 
+/* ===== マイラケット ===== */
+const RK_ITEMS=[
+  {k:'bounce',name:'ラバー反発',lo:'粘着',hi:'高弾性',desc:'当てた時の球の勢い。高いほど当てるだけでも速く返るが、引いて止める球は効きにくい'},
+  {k:'spin',  name:'回転',      lo:'無回転',hi:'強回転',desc:'左右に動かしながら打つと、その方向へ曲がるカーブ球になる。その曲がりの強さ'},
+  {k:'size',  name:'面の大きさ',lo:'小',hi:'大',desc:'当たり判定の幅。大きいほど当てやすいが、動きが少し重くなる'},
+  {k:'weight',name:'重さ',      lo:'軽い',hi:'重い',desc:'軽いほど速く動ける。重いほど前へ振った時の加速が大きい'},
+  {k:'angle', name:'打球角度',  lo:'素直',hi:'鋭角',desc:'端で当てた時の角度の付き方。鋭いほど厳しいコースを狙えるがアウトしやすい'},
+];
+const RK_COLORS=['#e8433a','#2f7fd0','#2bb673','#f2a516','#8a5cf6','#2b3240','#ff6fae','#e9edf3'];
+const RK_DEF={bounce:3,spin:3,size:3,weight:3,angle:3,color:'#e8433a'};
+let myRk={...RK_DEF};
+try{const v=JSON.parse(localStorage.getItem('rt_racket')||'null');if(v)myRk={...RK_DEF,...v};}catch(e){}
+function rkSan(c){const o={...RK_DEF};if(c&&typeof c==='object'){for(const it of RK_ITEMS){const v=Math.round(+c[it.k]);if(v>=1&&v<=5)o[it.k]=v;}if(RK_COLORS.includes(c.color))o.color=c.color;}return o;}
+function rkStats(c){
+  const d=k=>c[k]-3;   // -2〜+2
+  return {
+    touch:0.8+d('bounce')*0.06,                 // 当てるだけの時の速度倍率 0.68〜0.92
+    pull:0.3*(1-d('bounce')*0.2),               // 手前へ引いた時の減速の効き
+    gain:0.9*(1+d('weight')*0.13),              // 前へ振った時の加速量
+    spin:(c.spin-1)*0.22,                       // カーブの強さ 0〜0.88
+    rw:0.23+d('size')*0.03,                     // 面の幅 0.17〜0.29
+    move:(1-d('weight')*0.1)*(1-d('size')*0.04),// 移動の速さ
+    ang:0.75+d('angle')*0.1,                    // 端で当てた時の角度
+    angMax:0.85+d('angle')*0.08,
+    color:c.color
+  };
+}
+function rkFor(s){return G&&G.rk?G.rk[s]:rkStats(RK_DEF);}
+
 /* ===== サウンド ===== */
 let AC=null;
 function ac(){
@@ -160,6 +215,7 @@ const SE={
   smash:()=>{tone(1700,0.13,'sawtooth',0.10,380);tone(180,0.12,'sine',0.28,70);},
   soft:()=>tone(700,0.07,'sine',0.15,500),
   wall:()=>tone(620,0.03,'triangle',0.05),
+  outMark:()=>tone(240,0.25,'square',0.08,140),
   bounce:()=>tone(1500,0.035,'sine',0.10,900),
   bounceFar:()=>tone(1300,0.03,'sine',0.04,800),
   spawn:()=>{tone(660,0.08,'sine',0.11);tone(990,0.12,'sine',0.11,null,0.08);},
@@ -278,14 +334,18 @@ function startSolo(){ac();cleanup();newGame({solo:true,isHost:true});show('game'
 /* ===== ゲーム状態 ===== */
 let G=null;
 function mkR(s){const y=s===0?0.14:L-0.14;return {x:0.5,y,px:0.5,py:y,vx:0,vy:0,tx:0.5,ty:y};}
-function mkBall(a,o){return {id:a[0],x:a[1],y:a[2],vx:a[3],vy:a[4],owner:o,hits:0,born:performance.now(),tr:[]};}
-function pack(b){return [b.id,r4(b.x),r4(b.y),r4(b.vx),r4(b.vy)];}
+function mkBall(a,o){return {id:a[0],x:a[1],y:a[2],vx:a[3],vy:a[4],ax:a[5]||0,ld:!!a[6],y0:a[7]!=null?a[7]:a[2],land:a[8]!=null?a[8]:null,owner:o,hits:0,born:performance.now(),tr:[]};}
+function pack(b){return [b.id,r4(b.x),r4(b.y),r4(b.vx),r4(b.vy),r4(b.ax||0),b.ld?1:0,r4(b.y0),b.land==null?null:r4(b.land)];}
 function newGame(o){
   G={solo:o.solo,isHost:o.isHost,mySide:o.isHost?0:1,
     balls:new Map(),rackets:[mkR(0),mkR(1)],
     score:[0,0],round:0,state:'serve',stateT:3,nextSpawn:SPAWN_INT,spawnSide:0,nextId:1,
     serveTo:Math.random()<.5?0:1,winner:-1,
-    fx:[],pops:[],hpops:[],sendT:0,pingT:0,rtt:0.1,lastCount:-1,shake:0,missSent:-1,dead:false};
+    rk:[null,null],marks:[],fx:[],pops:[],hpops:[],sendT:0,pingT:0,rtt:0.1,lastCount:-1,shake:0,missSent:-1,dead:false};
+  const me=G.mySide;
+  G.rk[me]=rkStats(myRk);
+  G.rk[1-me]=rkStats(G.solo?{...RK_DEF,color:myRk.color==='#2f7fd0'?'#2b3240':'#2f7fd0'}:{...RK_DEF,color:'#2f7fd0'});
+  if(!G.solo)send({k:'cfg',c:myRk});
   $('opLbl').textContent=G.solo?'BOT':'RIVAL';
   $('result').classList.remove('on');$('msg').classList.remove('on');
   if(G.isHost)broadcastSc(-1);
@@ -300,44 +360,64 @@ function reflectX(x){const a=BR,b=W-BR,sp=b-a;let t=(x-a)%(2*sp);if(t<0)t+=2*sp;
 
 /* ===== 物理 ===== */
 const LAND=[NET/2,NET*1.5];   // 各陣地のバウンド位置（ここで台の上にいなければアウト）
+// 打球の飛距離（打った位置から最初に落ちるまでの前後距離）：球速が速いほど遠くへ飛ぶ
+function flightDist(sp){return clamp(0.28+0.5*sp,0.45,1.05);}
 function onTable(x){return x>-BR*0.5&&x<W+BR*0.5;}
-function stepFree(b,h){b.x+=b.vx*h;b.y+=b.vy*h;}
+function stepFree(b,h){b.vx+=(b.ax||0)*h;b.x+=b.vx*h;b.y+=b.vy*h;}
 function stepOwned(b,h,frac){
   const py=b.y;
-  b.x+=b.vx*h; b.y+=b.vy*h;
-  // 着地判定：受け手側のバウンド位置を受け手に向かって通過した瞬間
-  if(py>LAND[0]&&b.y<=LAND[0]&&b.vy<0&&!onTable(b.x)){b.dead=true;missLocal(1,'out');return;}
-  if(py<LAND[1]&&b.y>=LAND[1]&&b.vy>0&&!onTable(b.x)){b.dead=true;missLocal(0,'out');return;}
+  b.vx+=(b.ax||0)*h; b.x+=b.vx*h; b.y+=b.vy*h;
+  // 着地判定：打球が最初に落ちる位置（b.land）を通過した瞬間に確定
+  if(!b.ld&&b.land!=null&&(b.vy>0?(py<b.land&&b.y>=b.land):(py>b.land&&b.y<=b.land))){
+    const hitter=b.vy>0?0:1;
+    if(sideOf(b.land)===hitter){                 // 相手コートより先に自分のコートに着弾
+      landMark(b.x,b.land,false,true);b.dead=true;missLocal(hitter,'own');return;
+    }
+    const inn=onTable(b.x)&&b.land>=-0.005&&b.land<=L+0.005;   // 左右だけでなく、エンドラインを越えた着弾もアウト
+    landMark(b.x,b.land,inn,true);
+    if(inn)b.ld=true;
+    else{b.dead=true;missLocal(hitter,'out');return;}   // 相手コートの外に着弾
+  }
   const s=sideOf(b.y);
   if(G.solo||s===G.mySide){
     const r=G.rackets[s];
     const rx=r.px+(r.x-r.px)*frac, ry=r.py+(r.y-r.py)*frac;
     const f=s===0?1:-1;
-    if(b.vy*f<0&&Math.abs(b.x-rx)<RW/2+BR&&Math.abs(b.y-ry)<RH/2+BR)hitBall(b,r,rx,ry,f,s);
+    if(b.vy*f<0&&Math.abs(b.x-rx)<rkFor(s).rw/2+BR&&Math.abs(b.y-ry)<RH/2+BR)hitBall(b,r,rx,ry,f,s);
   }
   if(!G.solo&&b.owner===G.mySide&&sideOf(b.y)!==G.mySide){
     b.owner=1-G.mySide;
     send({k:'hand',rd:G.round,b:pack(b)});
   }
-  if(b.y<-BR*3){b.dead=true;missLocal(0);}
-  else if(b.y>L+BR*3){b.dead=true;missLocal(1);}
-  else if(b.x<-REACH-0.25||b.x>W+REACH+0.25){b.dead=true;missLocal(sideOf(b.y));}
+  // 玉が届かない所まで行った：台で弾んでいれば受け手のミス、弾む前なら打った側のアウト
+  if(b.y<-BR*3||b.y>L+BR*3||b.x<-REACH-0.25||b.x>W+REACH+0.25){
+    const recv=b.vy<0?0:1;
+    b.dead=true;
+    if(b.ld)missLocal(recv);else missLocal(1-recv,'out');
+  }
 }
 function hitBall(b,r,rx,ry,f,s){
-  const off=clamp((b.x-rx)/(RW/2),-1,1);
-  const ang=clamp(off*0.75+clamp(r.vx,-2,2)*0.1,-0.85,0.85);
+  const st=rkFor(s);
+  const off=clamp((b.x-rx)/(st.rw/2),-1,1);
+  const ang=clamp(off*st.ang+clamp(r.vx,-2,2)*0.06,-st.angMax,st.angMax);
   // 振りの強さ：前へ振るほど加速、手前へ引くほど減速（連続的に変化）
-  const pw=clamp(r.vy*f/SWING_FULL,-1,1);
+  const pw=clamp(r.vy*f/(SWING_FULL*st.move),-1,1);
   let sp=Math.hypot(b.vx,b.vy), kind=0;
-  // 当てるだけ → 2割減速。前へ振る速さに比例して加速。手前へ引くとさらに減速
-  if(pw>0)sp=sp*0.8+pw*0.9;
-  else sp=sp*(0.8+pw*0.3);
+  // 当てるだけ → 減速（ラバー反発で変化）。前へ振る速さに比例して加速（重さで変化）
+  if(pw>0)sp=sp*st.touch+pw*st.gain;
+  else sp=sp*(st.touch+pw*st.pull);
+  // 回転：左右に動かしながら打つとその方向へ曲がる
+  // 曲がり幅が球速に左右されないよう、球速の2乗に比例させる（最大で台幅の約3割曲がる）
+  sp=clamp(sp,MIN_SPD,MAX_SPD);
+  b.ax=clamp(r.vx/1.6,-1,1)*st.spin*sp*sp*0.6;
+  const curve=Math.abs(b.ax)>0.25;
   sp=clamp(sp,MIN_SPD,MAX_SPD);
   if(pw>0.5)kind=2;else if(pw<=0.05)kind=1;
   b.vx=Math.sin(ang)*sp; b.vy=f*Math.cos(ang)*sp;
-  b.y=ry+f*(RH/2+BR+0.002); b.hits++;
-  hitFx(b.x,b.y,kind,s===G.mySide,sp);
-  if(!G.solo)send({k:'fx',x:r4(b.x),y:r4(b.y),n:kind,v:r4(sp)});
+  b.y=ry+f*(RH/2+BR+0.002); b.hits++; b.ld=false;
+  b.y0=b.y; b.land=b.y+f*flightDist(sp);
+  hitFx(b.x,b.y,kind,s===G.mySide,sp,curve);
+  if(!G.solo)send({k:'fx',x:r4(b.x),y:r4(b.y),n:kind,v:r4(sp),c:curve?1:0});
 }
 function advance(b,t,owned){
   const n=Math.max(1,Math.ceil(t*240)),h=t/n;
@@ -362,7 +442,9 @@ function handleMiss(side,why){
 function broadcastSc(ms,why){send({k:'sc',rd:G.round,s:G.score,st:G.state,t:G.stateT,w:G.winner,ms,why});}
 function onPoint(missSide,why){
   const mine=missSide===G.mySide;
-  G.pops.push({txt:why==='out'?(mine?'OUT':'OUT  +1'):(mine?'MISS':'POINT'),col:mine?'#3fa9ff':'#ff5a4e',t:0});
+  const scorer=mine?(G.solo?'BOT':'RIVAL'):'YOU';
+  const reason=why==='own'?'自コートに着弾':why==='out'?'コート外に着弾':'返球できず';
+  G.pops.push({txt:scorer+' POINT',sub:(mine?'':'相手が')+reason,col:mine?'#3fa9ff':'#ff5a4e',t:0});
   if(mine){SE.miss();G.shake=0.35;}else SE.point();
   if(G.state==='over')setTimeout(showResult,700);
 }
@@ -388,7 +470,7 @@ function rematch(){
 /* ===== ホスト進行 ===== */
 function spawnBall(side){
   const id=G.nextId++, ang=(Math.random()-0.5)*0.7, f=side===0?-1:1;
-  const b=mkBall([id,0.25+Math.random()*0.5,NET+f*0.012,Math.sin(ang)*BASE_SPD,f*Math.cos(ang)*BASE_SPD],side);
+  const b=mkBall([id,0.25+Math.random()*0.5,NET+f*0.012,Math.sin(ang)*BASE_SPD,f*Math.cos(ang)*BASE_SPD,0,0,NET,LAND[side]],side);
   G.balls.set(id,b);
   send({k:'spawn',rd:G.round,b:pack(b),o:side});
   spawnFx(b);
@@ -418,13 +500,13 @@ function botUpdate(dt){
   }
   let tx=0.5,ty=L-0.17,sx=1.2,sy=0.9;
   if(best){
-    const hx=best.x+best.vx*bt;
+    const hx=best.x+best.vx*bt+0.5*(best.ax||0)*bt*bt;
     if(best.bHit!==best.hits){
-      best.bHit=best.hits;const rn=Math.random();best.bSm=rn<0.25;best.bSo=rn>0.82;
+      best.bHit=best.hits;const rn=Math.random();best.bSm=rn<0.25;best.bSo=rn>0.92;
       // 狙う着地点を決め、そこへ飛ぶ打点のずれを逆算（たまに狙いすぎる）
       const goal=Math.random()<0.07?(Math.random()<0.5?-0.15:W+0.15):0.12+Math.random()*0.76;
       const ang=Math.atan2(goal-hx,r.y-LAND[0]);
-      best.bAim=-clamp(ang/0.75,-0.95,0.95)*RW/2;
+      const bs=rkFor(1);best.bAim=-clamp(ang/bs.ang,-0.95,0.95)*bs.rw/2;
     }
     tx=hx+best.bAim;
     if(best.bSm&&bt<0.35){ty=L-0.3;sy=2.4;}          // 強く振る
@@ -451,7 +533,7 @@ function onMsg(m){
       for(const a of m.b){
         const b=G.balls.get(a[0]);
         if(!b||b.owner===G.mySide)continue;
-        const c={x:a[1],y:a[2],vx:a[3],vy:a[4]};
+        const c={x:a[1],y:a[2],vx:a[3],vy:a[4],ax:a[5]||0};b.ax=c.ax;b.ld=!!a[6];if(a[7]!=null)b.y0=a[7];if(a[8]!==undefined)b.land=a[8];
         advance(c,ld,false);
         b.vx=c.vx;b.vy=c.vy;
         if(Math.hypot(c.x-b.x,c.y-b.y)>0.15){b.x=c.x;b.y=c.y;}
@@ -462,7 +544,7 @@ function onMsg(m){
       if(m.rd!==G.round)break;
       let b=G.balls.get(m.b[0]);
       if(!b){b=mkBall(m.b,G.mySide);G.balls.set(b.id,b);}
-      else{b.x=m.b[1];b.y=m.b[2];b.vx=m.b[3];b.vy=m.b[4];}
+      else{b.x=m.b[1];b.y=m.b[2];b.vx=m.b[3];b.vy=m.b[4];b.ax=m.b[5]||0;b.ld=!!m.b[6];b.y0=m.b[7];b.land=m.b[8];}
       b.owner=G.mySide;
       advance(b,lead(),true);
       break;}
@@ -482,7 +564,9 @@ function onMsg(m){
       if(m.st==='serve')G.lastCount=-1;
       if(m.ms===0||m.ms===1)onPoint(m.ms,m.why);
       break;}
-    case 'fx':hitFx(m.x,m.y,m.n,false,m.v);break;
+    case 'land':landMark(m.x,m.y,!!m.i,false);break;
+    case 'cfg':{const c=rkSan(m.c);G.rk[1-G.mySide]=rkStats(c);break;}
+    case 'fx':hitFx(m.x,m.y,m.n,false,m.v,!!m.c);break;
     case 'ping':send({k:'pong',t:m.t});break;
     case 'pong':G.rtt=G.rtt*0.7+((performance.now()-m.t)/1000)*0.3;break;
     case 'bye':lost();break;
@@ -490,12 +574,17 @@ function onMsg(m){
 }
 
 /* ===== エフェクト ===== */
-function hitFx(x,y,kind,mine,sp){
+function hitFx(x,y,kind,mine,sp,curve){
   G.fx.push({x,y,t:0,d:kind===2?0.45:0.3,c:kind===2?'#ffc24b':kind===1?'#7fe3ff':'#ffffff',r:kind===2?0.12:0.07});
-  if(sp)G.hpops.push({x,y,t:0,txt:kind===2?'SMASH':kind===1?'SOFT':'',col:kind===2?'#ffc24b':'#7fe3ff',spd:Math.round(sp*60)});
+  if(sp)G.hpops.push({x,y,t:0,txt:(kind===2?'SMASH':kind===1?'SOFT':'')+(curve?(kind?' + ':'')+'CURVE':''),col:kind===2?'#ffc24b':kind===1?'#7fe3ff':'#d6b4ff',spd:Math.round(sp*60)});
   if(kind===2){SE.smash();G.shake=Math.max(G.shake,0.18);}
   else if(kind===1)SE.soft();
   else mine?SE.hit():SE.hitFar();
+}
+function landMark(x,y,inn,local){
+  G.marks.push({x,y,inn,t:0});
+  if(!inn)SE.outMark();else(sideOf(y)===G.mySide?SE.bounce:SE.bounceFar)();
+  if(local&&!G.solo)send({k:'land',x:r4(x),y:r4(y),i:inn?1:0});
 }
 function spawnFx(b){G.fx.push({x:b.x,y:b.y,t:0,d:0.6,c:'#ffc24b',r:0.14});SE.spawn();}
 
@@ -503,14 +592,15 @@ function spawnFx(b){G.fx.push({x:b.x,y:b.y,t:0,d:0.6,c:'#ffc24b',r:0.14});SE.spa
 function moveMe(dt){
   const me=G.rackets[G.mySide]; me.px=me.x; me.py=me.y;
   // キー入力：押している間じわじわ加速、離すとすぐ止まる（振りの速さを押す長さで作れる）
-  const kx=((keys.r?1:0)-(keys.l?1:0))*KEY_SPD, ky=((keys.u?1:0)-(keys.d?1:0))*KEY_SPD;
+  const mv=rkFor(G.mySide).move;
+  const kx=((keys.r?1:0)-(keys.l?1:0))*KEY_SPD*mv, ky=((keys.u?1:0)-(keys.d?1:0))*KEY_SPD*mv;
   const kv=G.kv||(G.kv={x:0,y:0});
   const ax=(t,c)=>c+(t-c)*Math.min(1,dt*(Math.abs(t)>Math.abs(c)&&Math.sign(t)!==-Math.sign(c)?KEY_ACC:KEY_DEC));
   kv.x=ax(kx,kv.x);kv.y=ax(ky,kv.y);
-  let dx=kv.x*dt+pad.dx;
-  let dy=kv.y*dt+pad.dy;
+  let dx=kv.x*dt+pad.dx*mv;
+  let dy=kv.y*dt+pad.dy*mv;
   pad.dx=pad.dy=0;
-  const m=Math.hypot(dx,dy); if(m>MAX_STEP){dx*=MAX_STEP/m;dy*=MAX_STEP/m;}
+  const m=Math.hypot(dx,dy); if(m>MAX_STEP*mv){dx*=MAX_STEP*mv/m;dy*=MAX_STEP*mv/m;}
   const sg=G.mySide===0?1:-1;
   me.x=clampX(me.x+dx*sg); me.y=clampY(G.mySide,me.y+dy*sg);
   velUpd(me,dt);
@@ -536,9 +626,6 @@ function update(dt){
   }
   for(const b of G.balls.values()){
     b.tr.push([b.x,b.y]);if(b.tr.length>8)b.tr.shift();
-    const bi=Math.floor((b.y+NET/2)/NET);
-    if(b.bi!==undefined&&bi!==b.bi&&b.y>0&&b.y<L)(sideOf(b.y)===G.mySide?SE.bounce:SE.bounceFar)();
-    b.bi=bi;
   }
 
   if(G.isHost)hostTick(dt);
@@ -566,10 +653,12 @@ function update(dt){
   }
   for(const f of G.fx)f.t+=dt;
   G.fx=G.fx.filter(f=>f.t<f.d);
+  for(const mk of G.marks)mk.t+=dt;
+  G.marks=G.marks.filter(mk=>mk.t<(mk.inn?0.6:1.4));
   for(const p of G.hpops)p.t+=dt;
   G.hpops=G.hpops.filter(p=>p.t<0.9);
   for(const p of G.pops)p.t+=dt;
-  G.pops=G.pops.filter(p=>p.t<1.2);
+  G.pops=G.pops.filter(p=>p.t<1.6);
   G.shake=Math.max(0,G.shake-dt);
 }
 
@@ -608,7 +697,16 @@ function pr(u,v,z){
 }
 function lv(y){return G.mySide===0?y:L-y;}
 function P3(x,y,z){return G.mySide===0?pr(x,y,z):pr(W-x,L-y,z);}
-function ballZ(y){return BR+ZA*Math.abs(Math.cos(Math.PI*lv(y)/NET));}
+function arcH(d){return 0.05+0.09*Math.abs(d);}
+function ballZ(b,y){
+  if(y===undefined)y=b.y;
+  if(!b||b.land==null||b.y0==null)return BR+ZA;
+  const d=b.land-b.y0; if(Math.abs(d)<1e-4)return BR;
+  const u=(y-b.y0)/d;
+  if(u<=1)return BR+arcH(d)*4*Math.max(0,u)*(1-Math.max(0,u));
+  const d2=d*0.85; let u2=(y-b.land)/d2; u2-=Math.floor(u2);
+  return BR+arcH(d2)*0.75*4*u2*(1-u2);
+}
 function rr(x,y,w,h,r){r=Math.min(r,w/2,h/2);ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
 function ell(x,y,rx,ry){ctx.beginPath();ctx.ellipse(x,y,Math.max(0.5,rx),Math.max(0.5,ry),0,0,Math.PI*2);}
 function poly(ps){ctx.beginPath();ps.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();}
@@ -620,12 +718,12 @@ function groundShadow(x,y,rw,alpha){
 function drawBall(b,now){
   const sp=Math.hypot(b.vx,b.vy), heat=clamp((sp-BASE_SPD)/(MAX_SPD-BASE_SPD),0,1), cool=clamp((BASE_SPD-sp)/(BASE_SPD-MIN_SPD),0,1);
   for(let i=0;i<b.tr.length;i++){
-    const t=b.tr[i],[px,py,ps]=P3(t[0],t[1],ballZ(t[1]));
+    const t=b.tr[i],[px,py,ps]=P3(t[0],t[1],ballZ(b,t[1]));
     ctx.globalAlpha=(i/b.tr.length)*0.28*(0.4+heat);ctx.fillStyle=heat>0.5?'#ffb347':'#ffffff';
     ell(px,py,BR*ps*(0.5+0.5*i/b.tr.length),BR*ps*(0.5+0.5*i/b.tr.length));ctx.fill();
   }
   ctx.globalAlpha=1;
-  const [bx,by,bs]=P3(b.x,b.y,ballZ(b.y)),r=BR*bs;
+  const [bx,by,bs]=P3(b.x,b.y,ballZ(b)),r=BR*bs;
   const age=(now-b.born)/1000;
   if(age<1.2){ctx.strokeStyle='#ffc24b';ctx.globalAlpha=1-age/1.2;ctx.lineWidth=2;ell(bx,by,r*1.9,r*1.9);ctx.stroke();ctx.globalAlpha=1;}
   const g=Math.round(255-heat*80),bl=Math.round(240-heat*170+cool*15), rd=Math.round(235-cool*110);
@@ -635,15 +733,15 @@ function drawBall(b,now){
 }
 function drawRacket(r,s){
   const mine=s===G.mySide,[cx,cy,sc]=P3(r.x,r.y,RZ);
-  const rx=RW/2*sc, ry=RW*0.46*sc, hw=0.034*sc, hh=0.075*sc;
+  const st=rkFor(s), rx=st.rw/2*sc, ry=st.rw*0.46*sc, hw=0.034*sc, hh=0.075*sc;
   ctx.globalAlpha=mine?0.72:1;
   ctx.fillStyle='#b98a52';rr(cx-hw/2,cy+ry*0.8,hw,hh,hw*0.3);ctx.fill();
   ctx.fillStyle='#d7b07a';ell(cx,cy,rx*1.04,ry*1.05);ctx.fill();
-  ctx.fillStyle=mine?'#e8433a':'#2f7fd0';ell(cx,cy,rx,ry);ctx.fill();
+  ctx.fillStyle=st.color;ell(cx,cy,rx,ry);ctx.fill();
   ctx.globalAlpha=1;
   ctx.strokeStyle=mine?'rgba(255,255,255,.75)':'rgba(255,255,255,.45)';ctx.lineWidth=mine?2:1;ell(cx,cy,rx,ry);ctx.stroke();
   if(mine){
-    const pw=clamp(r.vy*(s===0?1:-1)/SWING_FULL,-1,1);
+    const pw=clamp(r.vy*(s===0?1:-1)/(SWING_FULL*st.move),-1,1);
     if(Math.abs(pw)>0.15){ctx.strokeStyle=pw>0?'#ffc24b':'#7fe3ff';ctx.globalAlpha=Math.min(1,Math.abs(pw));ctx.lineWidth=2+Math.abs(pw)*4;ell(cx,cy,rx*1.08,ry*1.1);ctx.stroke();ctx.globalAlpha=1;}
   }
   if(mine){ctx.fillStyle='rgba(255,255,255,.7)';ell(cx,cy,Math.max(2,rx*0.05),Math.max(2,rx*0.05));ctx.fill();}
@@ -675,14 +773,23 @@ function render(){
   ctx.strokeStyle='#f4f7fb';ctx.lineWidth=2.5;poly([T(0,0),T(W,0),T(W,L),T(0,L)]);ctx.stroke();
   ctx.lineWidth=1.2;ctx.beginPath();let p=T(W/2,0),q=T(W/2,L);ctx.moveTo(p[0],p[1]);ctx.lineTo(q[0],q[1]);ctx.stroke();
 
+  // 着地マーク（IN=白、OUT=赤で×）
+  for(const mk of G.marks){
+    const life=mk.inn?0.6:1.4,k=mk.t/life,[mx,my,ms]=P3(mk.x,mk.y,0),a=P3(mk.x,mk.y-0.03,0),b2=P3(mk.x,mk.y+0.03,0);
+    const rx=0.035*ms*(1+k*0.6),ry=Math.abs(a[1]-b2[1])/2*(1+k*0.6);
+    ctx.globalAlpha=1-k;ctx.lineWidth=2.5;ctx.strokeStyle=mk.inn?'#ffffff':'#ff4d4d';
+    ell(mx,my,rx,ry);ctx.stroke();
+    if(!mk.inn){ctx.beginPath();ctx.moveTo(mx-rx*0.7,my-ry*0.7);ctx.lineTo(mx+rx*0.7,my+ry*0.7);ctx.moveTo(mx+rx*0.7,my-ry*0.7);ctx.lineTo(mx-rx*0.7,my+ry*0.7);ctx.stroke();}
+    ctx.globalAlpha=1;
+  }
   // 影（玉・ラケット）
   for(const b of G.balls.values()){
     if(b.y<-0.12||b.y>L+0.12||!onTable(b.x))continue;
-    groundShadow(b.x,b.y,BR*1.05,0.38-0.25*(ballZ(b.y)-BR)/ZA);
+    groundShadow(b.x,b.y,BR*1.05,clamp(0.38-0.2*(ballZ(b)-BR)/0.15,0.1,0.38));
   }
-  for(let s2=0;s2<2;s2++)groundShadow(G.rackets[s2].x,G.rackets[s2].y,RW*0.42,0.22);
+  for(let s2=0;s2<2;s2++)groundShadow(G.rackets[s2].x,G.rackets[s2].y,rkFor(s2).rw*0.42,0.22);
   // 自分のラケットの打球ライン
-  {const r=G.rackets[G.mySide];const a=P3(r.x-RW/2,r.y,0),b=P3(r.x+RW/2,r.y,0);
+  {const r=G.rackets[G.mySide],hw2=rkFor(G.mySide).rw/2;const a=P3(r.x-hw2,r.y,0),b=P3(r.x+hw2,r.y,0);
    ctx.strokeStyle='rgba(255,90,78,.55)';ctx.lineWidth=Math.max(2,0.012*a[2]);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();}
 
   // 奥から順に描画
@@ -696,14 +803,14 @@ function render(){
 
   // エフェクト
   for(const f of G.fx){
-    const k=f.t/f.d,[fx,fy,fs]=P3(f.x,f.y,ballZ(f.y));
+    const k=f.t/f.d,[fx,fy,fs]=P3(f.x,f.y,BR+0.05);
     ctx.strokeStyle=f.c;ctx.globalAlpha=1-k;ctx.lineWidth=2.5;
     const rad=(BR+f.r*k)*fs;ell(fx,fy,rad,rad);ctx.stroke();
   }
   ctx.globalAlpha=1;
   ctx.textAlign='center';ctx.textBaseline='middle';
   for(const h of G.hpops){
-    const [hx,hy,hs]=P3(h.x,h.y,ballZ(h.y)+0.06+h.t*0.08),k=h.t/0.9,fz=Math.max(11,Math.min(26,hs*0.07));
+    const [hx,hy,hs]=P3(h.x,h.y,BR+0.12+h.t*0.08),k=h.t/0.9,fz=Math.max(11,Math.min(26,hs*0.07));
     ctx.globalAlpha=1-k;
     if(h.txt){ctx.fillStyle=h.col;ctx.font=`900 ${Math.round(fz)}px system-ui,sans-serif`;ctx.fillText(h.txt,hx,hy-fz);}
     ctx.fillStyle='#ffffff';ctx.font=`800 ${Math.round(fz*0.8)}px system-ui,sans-serif`;ctx.fillText(h.spd+' km/h',hx,hy);
@@ -722,10 +829,12 @@ function render(){
     ctx.globalAlpha=1;
   }
   for(const p of G.pops){
-    const k=p.t/1.2;
-    ctx.globalAlpha=1-k;ctx.fillStyle=p.col;
-    ctx.font=`900 ${Math.round(fsz*(0.15+k*0.04))}px system-ui,sans-serif`;
-    ctx.fillText(p.txt,CW/2,CH*0.22-k*fsz*0.06);
+    const k=p.t/1.6, y=CH*0.2-k*fsz*0.04;
+    ctx.globalAlpha=Math.min(1,(1-k)*1.6);ctx.fillStyle=p.col;
+    let fs=fsz*0.12;ctx.font=`900 ${Math.round(fs)}px system-ui,sans-serif`;
+    const w=ctx.measureText(p.txt).width;if(w>CW*0.9){fs*=CW*0.9/w;ctx.font=`900 ${Math.round(fs)}px system-ui,sans-serif`;}
+    ctx.fillText(p.txt,CW/2,y);
+    if(p.sub){ctx.fillStyle='#ffffff';ctx.font=`700 ${Math.round(Math.max(12,fs*0.32))}px system-ui,sans-serif`;ctx.fillText(p.sub,CW/2,y+fs*0.75);}
   }
   ctx.globalAlpha=1;
 }
@@ -753,6 +862,44 @@ $('bBack').onclick=toTitle;$('bMsgBack').onclick=toTitle;
 $('bQuit').onclick=()=>{if(confirm('対戦を終了してタイトルに戻りますか？'))toTitle();};
 $('bMute').onclick=()=>{muted=!muted;try{localStorage.setItem('rt_mute',muted?'1':'0');}catch(_){}updMute();};
 updMute();
+
+/* ===== マイラケット画面 ===== */
+function rkSave(){try{localStorage.setItem('rt_racket',JSON.stringify(myRk));}catch(e){}}
+function rkBuild(){
+  const list=$('rkList');list.innerHTML='';
+  for(const it of RK_ITEMS){
+    const d=document.createElement('div');d.className='rkItem';
+    d.innerHTML=`<div class="nm">${it.name}<span>${it.lo} ⇄ ${it.hi}</span></div><div class="ds">${it.desc}</div>`;
+    const seg=document.createElement('div');seg.className='seg';
+    seg.innerHTML=`<div class="end">${it.lo}</div>`;
+    for(let v=1;v<=5;v++){
+      const b=document.createElement('button');b.textContent=v;b.className=myRk[it.k]===v?'on':'';
+      b.onclick=()=>{myRk[it.k]=v;rkSave();rkBuild();};seg.appendChild(b);
+    }
+    seg.insertAdjacentHTML('beforeend',`<div class="end">${it.hi}</div>`);
+    d.appendChild(seg);list.appendChild(d);
+  }
+  const cols=$('rkCols');cols.innerHTML='';
+  for(const c of RK_COLORS){
+    const b=document.createElement('button');b.style.background=c;b.className=myRk.color===c?'on':'';
+    b.setAttribute('aria-label','色');b.onclick=()=>{myRk.color=c;rkSave();rkBuild();};cols.appendChild(b);
+  }
+  rkDrawPrev();
+}
+function rkDrawPrev(){
+  const c=$('rkPrev'),x=c.getContext('2d'),st=rkStats(myRk);
+  x.clearRect(0,0,c.width,c.height);
+  const k=st.rw/0.29, rx=84*k, ry=rx*0.92, cx=96, cy=92;
+  x.fillStyle='#b98a52';x.beginPath();x.roundRect?x.roundRect(cx-14,cy+ry*0.8,28,70,8):x.rect(cx-14,cy+ry*0.8,28,70);x.fill();
+  x.fillStyle='#d7b07a';x.beginPath();x.ellipse(cx,cy,rx*1.05,ry*1.06,0,0,Math.PI*2);x.fill();
+  x.fillStyle=st.color;x.beginPath();x.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);x.fill();
+  x.strokeStyle='rgba(255,255,255,.6)';x.lineWidth=3;x.stroke();
+  // 回転の強さを渦で表示
+  if(myRk.spin>1){x.strokeStyle='rgba(255,255,255,.35)';x.lineWidth=3;for(let i=0;i<myRk.spin-1;i++){x.beginPath();x.arc(cx,cy,rx*(0.25+i*0.17),0.3+i,2.2+i);x.stroke();}}
+}
+$('bRk').onclick=()=>{rkBuild();show('rk');};
+$('rkOk').onclick=()=>show('title');
+$('rkReset').onclick=()=>{myRk={...RK_DEF,color:myRk.color};rkSave();rkBuild();};
 const de=document.documentElement;
 if(coarse&&(de.requestFullscreen||de.webkitRequestFullscreen)){
   $('bFull').style.display='flex';
