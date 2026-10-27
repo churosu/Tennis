@@ -61,6 +61,7 @@ input{font:inherit;font-size:18px;font-weight:800;letter-spacing:.2em;text-trans
 .icon{width:32px;height:32px;flex:none;border-radius:10px;background:#0b1320;display:flex;align-items:center;justify-content:center}
 .icon svg{width:18px;height:18px}
 #stage{grid-area:stage;flex:1;width:100%;min-height:0;position:relative}
+@media (pointer:fine){#stage{cursor:none}}
 #cv{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
 #keyHint{position:absolute;left:0;right:0;bottom:6px;text-align:center;font-size:11px;color:var(--sub);pointer-events:none}
 #pad{grid-area:pad;display:none;width:100%;height:clamp(130px,24vh,220px);height:clamp(130px,24dvh,220px);flex:none;position:relative;background:
@@ -96,7 +97,7 @@ input{font:inherit;font-size:18px;font-weight:800;letter-spacing:.2em;text-trans
     <div class="sens">パッド感度<input type="range" id="sens" min="0.8" max="3.5" step="0.1"><span id="sensV"></span></div>
   </div>
   <div class="card rules">
-    <div><b>操作</b>　PC：十字キー / WASD　スマホ：下のトラックパッドをドラッグ</div>
+    <div><b>操作</b>　PC：マウスカーソルの位置にラケットが移動（十字キー / WASD も可）　スマホ：下のトラックパッドをドラッグ</div>
     <div><b>AIM</b>　ラケットの端で打つほど斜めに飛ぶ</div>
     <div><b>加速 / 減速</b>　当てるだけだと球は2割遅くなる。前へ振る速さに比例して加速し、手前へ引くとさらに減速。キーは押し続けるほど振りが速くなる。ラケットの縁の色（橙＝前／水色＝手前）が今の振りの強さ</div>
     <div><b>ルール</b>　10秒ごとに玉が1つ増える。自陣の奥へ抜かれたら相手に1点、玉はリセット。先に10点で勝ち</div>
@@ -131,7 +132,7 @@ input{font:inherit;font-size:18px;font-weight:800;letter-spacing:.2em;text-trans
     <button class="icon" id="bMute" aria-label="サウンド"></button>
     <button class="icon" id="bQuit" aria-label="退出"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </div>
-  <div id="stage"><canvas id="cv"></canvas><div id="keyHint">← → ↑ ↓ / WASD で移動　↑を押しながら打つと加速・↓で減速</div></div>
+  <div id="stage"><canvas id="cv"></canvas><div id="keyHint">マウスでラケット移動　奥へ素早く動かして打つと加速・手前へ引くと減速（十字キー / WASD も可）</div></div>
   <div id="pad"><div class="hint">ドラッグで移動 ／ 上へ払うと加速・下へ引くと減速</div><svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V4M5 11l7-7 7 7"/></svg><div id="padDot"></div></div>
 
   <div id="result" class="ov"><div class="card">
@@ -153,6 +154,8 @@ const BASE_SPD=0.78, MAX_SPD=2.1, MIN_SPD=0.42, SPAWN_INT=10, WIN=10;
 const SWING_FULL=1.2;  // この速さ以上でラケットを前後に振ると最大の加速/減速
 const R_NEAR=0.06, R_FAR=0.55;
            // ラケットが動ける範囲（自陣ベースラインからの距離）
+const MOUSE_SPD=5.0;   // マウス追従の最高速（台幅/秒）
+const MOUSE_SWING=2.6; // マウスは素早く動きやすいので、振りの強さの基準を大きくする
 const KEY_SPD=1.6, KEY_ACC=4.5, KEY_DEC=14, MAX_STEP=0.07;  // キーは押し続けるほど加速
 const PREFIX='rallyten-v1-';
 const ALPH='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -253,7 +256,7 @@ const keys={};
 const keyMap={ArrowUp:'u',w:'u',W:'u',ArrowDown:'d',s:'d',S:'d',ArrowLeft:'l',a:'l',A:'l',ArrowRight:'r',d:'r',D:'r'};
 addEventListener('keydown',e=>{
   if(e.target.tagName==='INPUT')return;
-  const k=keyMap[e.key]; if(k){keys[k]=true;e.preventDefault();ac();}
+  const k=keyMap[e.key]; if(k){keys[k]=true;e.preventDefault();ac();if(typeof mouse!=='undefined')mouse.on=false;}
 });
 addEventListener('keyup',e=>{const k=keyMap[e.key];if(k)keys[k]=false;});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false;});
@@ -262,6 +265,16 @@ const pad={dx:0,dy:0,id:null,lx:0,ly:0};
 const padEl=$('pad'), padDot=$('padDot');
 const coarse=matchMedia('(pointer:coarse)').matches;
 if(coarse){padEl.classList.add('on');$('keyHint').style.display='none';}
+// PC：マウスカーソルの位置へラケットを動かす
+const mouse={on:false,sx:0,sy:0,in:false};
+const stageEl=$('stage');
+stageEl.addEventListener('pointermove',e=>{
+  if(e.pointerType!=='mouse')return;
+  const r=cv.getBoundingClientRect();
+  mouse.sx=e.clientX-r.left;mouse.sy=e.clientY-r.top;mouse.on=true;mouse.in=true;
+});
+stageEl.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse')mouse.in=false;});
+stageEl.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')ac();});
 padEl.addEventListener('pointerdown',e=>{
   pad.id=e.pointerId;pad.lx=e.clientX;pad.ly=e.clientY;
   try{padEl.setPointerCapture(e.pointerId);}catch(_){}
@@ -401,7 +414,7 @@ function hitBall(b,r,rx,ry,f,s){
   const off=clamp((b.x-rx)/(st.rw/2),-1,1);
   const ang=clamp(off*st.ang+clamp(r.vx,-2,2)*0.06,-st.angMax,st.angMax);
   // 振りの強さ：前へ振るほど加速、手前へ引くほど減速（連続的に変化）
-  const pw=clamp(r.vy*f/(SWING_FULL*st.move),-1,1);
+  const pw=clamp(r.vy*f/(SWING_FULL*st.move*(r.sk||1)),-1,1);
   let sp=Math.hypot(b.vx,b.vy), kind=0;
   // 当てるだけ → 減速（ラバー反発で変化）。前へ振る速さに比例して加速（重さで変化）
   if(pw>0)sp=sp*st.touch+pw*st.gain;
@@ -600,10 +613,24 @@ function moveMe(dt){
   let dx=kv.x*dt+pad.dx*mv;
   let dy=kv.y*dt+pad.dy*mv;
   pad.dx=pad.dy=0;
+  // マウス：カーソルの指す位置へ追従（ラケットの重さで追従の最高速が変わる）
+  if(mouse.on&&!coarse&&CAM){
+    const t=unproject(mouse.sx,mouse.sy,RZ);
+    if(t){
+      const sg0=G.mySide===0?1:-1;
+      const tu=clampX(G.mySide===0?t[0]:W-t[0]), tv=clampY(G.mySide,G.mySide===0?t[1]:L-t[1]);
+      dx=(tu-me.x)*sg0; dy=(tv-me.y)*sg0;
+      const cap=MOUSE_SPD*mv*dt, m0=Math.hypot(dx,dy);
+      if(m0>cap){dx*=cap/m0;dy*=cap/m0;}
+      me.x=clampX(me.x+dx*sg0); me.y=clampY(G.mySide,me.y+dy*sg0);
+      velUpd(me,dt);me.sk=MOUSE_SWING;
+      return;
+    }
+  }
   const m=Math.hypot(dx,dy); if(m>MAX_STEP*mv){dx*=MAX_STEP*mv/m;dy*=MAX_STEP*mv/m;}
   const sg=G.mySide===0?1:-1;
   me.x=clampX(me.x+dx*sg); me.y=clampY(G.mySide,me.y+dy*sg);
-  velUpd(me,dt);
+  velUpd(me,dt);me.sk=1;
 }
 function update(dt){
   if(G.dead)return;
@@ -695,6 +722,15 @@ function pr(u,v,z){
   const cz=Math.max(0.02,dy*CAM.fy+dz*CAM.fz), up=dy*CAM.uy+dz*CAM.uz, s=CAM.f/cz;
   return [CAM.cx+dx*s, CAM.cy-up*s, s];
 }
+function unproject(sx,sy,z){
+  const q=(CAM.cy-sy)/CAM.f, dz=z-CAM.z;
+  const den=CAM.uy-q*CAM.fy; if(Math.abs(den)<1e-6)return null;
+  let dy=dz*(q*CAM.fz-CAM.uz)/den;
+  let cz=dy*CAM.fy+dz*CAM.fz;
+  if(cz<=0.05){dy=(0.05-dz*CAM.fz)/CAM.fy;cz=0.05;}   // 地平線より上 → 一番奥に固定
+  const s2=CAM.f/cz;
+  return [CAM.x+(sx-CAM.cx)/s2, CAM.y+dy];
+}
 function lv(y){return G.mySide===0?y:L-y;}
 function P3(x,y,z){return G.mySide===0?pr(x,y,z):pr(W-x,L-y,z);}
 function arcH(d){return 0.05+0.09*Math.abs(d);}
@@ -741,7 +777,7 @@ function drawRacket(r,s){
   ctx.globalAlpha=1;
   ctx.strokeStyle=mine?'rgba(255,255,255,.75)':'rgba(255,255,255,.45)';ctx.lineWidth=mine?2:1;ell(cx,cy,rx,ry);ctx.stroke();
   if(mine){
-    const pw=clamp(r.vy*(s===0?1:-1)/(SWING_FULL*st.move),-1,1);
+    const pw=clamp(r.vy*(s===0?1:-1)/(SWING_FULL*st.move*(r.sk||1)),-1,1);
     if(Math.abs(pw)>0.15){ctx.strokeStyle=pw>0?'#ffc24b':'#7fe3ff';ctx.globalAlpha=Math.min(1,Math.abs(pw));ctx.lineWidth=2+Math.abs(pw)*4;ell(cx,cy,rx*1.08,ry*1.1);ctx.stroke();ctx.globalAlpha=1;}
   }
   if(mine){ctx.fillStyle='rgba(255,255,255,.7)';ell(cx,cy,Math.max(2,rx*0.05),Math.max(2,rx*0.05));ctx.fill();}
@@ -818,6 +854,14 @@ function render(){
   ctx.globalAlpha=1;
   ctx.restore();
 
+  // マウス照準
+  if(mouse.on&&mouse.in&&!coarse){
+    ctx.strokeStyle='rgba(255,255,255,.75)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.arc(mouse.sx,mouse.sy,7,0,Math.PI*2);
+    ctx.moveTo(mouse.sx-12,mouse.sy);ctx.lineTo(mouse.sx-4,mouse.sy);ctx.moveTo(mouse.sx+4,mouse.sy);ctx.lineTo(mouse.sx+12,mouse.sy);
+    ctx.moveTo(mouse.sx,mouse.sy-12);ctx.lineTo(mouse.sx,mouse.sy-4);ctx.moveTo(mouse.sx,mouse.sy+4);ctx.lineTo(mouse.sx,mouse.sy+12);
+    ctx.stroke();
+  }
   // 文字
   ctx.textAlign='center';ctx.textBaseline='middle';
   const fsz=Math.min(CW,CH);
